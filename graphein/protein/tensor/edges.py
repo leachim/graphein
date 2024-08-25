@@ -60,9 +60,9 @@ def compute_edges(
     val = edge_type.split("_")[1]
 
     if etype == "knn":
-        return knn_edges(x=x, k=int(val), batch=batch, **kwargs)
+        return knn_edges(x=x, k=int(val), batch_size=batch, **kwargs)
     elif etype == "eps":
-        return radius_edges(x=x, radius=float(val), batch=batch, **kwargs)
+        return radius_edges(x=x, radius=float(val), batch_size=batch, **kwargs)
     else:
         raise ValueError(f"Edge type {edge_type} not recognised.")
 
@@ -109,7 +109,7 @@ def radius_edges(
     return radius_graph(
         x,
         r=radius,
-        batch=batch,
+        batch_size=batch,
         loop=loop,
         max_num_neighbors=max_num_neighbors,
         flow=flow,
@@ -158,7 +158,7 @@ def knn_edges(
     return knn_graph(
         x,
         k=k,
-        batch=batch,
+        batch_size=batch,
         loop=loop,
         flow=flow,
         num_workers=num_workers,
