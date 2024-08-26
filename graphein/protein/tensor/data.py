@@ -1559,7 +1559,11 @@ def get_random_protein() -> "Protein":
     """Utility/testing function to get a random proteins."""
     pdbs = ["3eiy", "4hhb", "1a0q", "1hcn"]
     pdb = random.choice(pdbs)
-    return Protein().from_pdb_code(pdb)
+
+    # custom modification - mmtf download no longer available
+    from utils.import constants
+    pdb_path = os.path.joing(DATA_PATH, "pdb", pdb)
+    return Protein().from_pdb_file(pdb_path)
 
 
 def get_random_batch(num_proteins: int = 8) -> "ProteinBatch":
