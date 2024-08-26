@@ -1561,7 +1561,7 @@ def get_random_protein() -> "Protein":
     pdb = random.choice(pdbs)
 
     # custom modification - mmtf download no longer available
-    from utils.import constants
+    from utils import constants
     pdb_path = os.path.joing(DATA_PATH, "pdb", pdb)
     return Protein().from_pdb_file(pdb_path)
 
