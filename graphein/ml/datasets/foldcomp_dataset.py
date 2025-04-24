@@ -348,20 +348,13 @@ class FoldCompDataset(Dataset):
         try:
             # Open the database specifically for this item within the worker's get method
             with foldcomp.open(path=db_file_path, ids=[protein_id], decompress=False) as db:
-                # Note: foldcomp.open with ids might return an iterator even for one ID.
-                # We need to reliably get the single entry.
-                # Assuming db behaves like an iterator yielding (id, compressed_data)
-                # or directly allows access like db[protein_id] if it supports dictionary-like access.
-                # Let's try iterating, assuming it yields one item for the given id.
-                retrieved_data = None
-                for retrieved_id, compressed_item in db:
-                     if retrieved_id == protein_id:
-                         retrieved_data = foldcomp.get_data(compressed_item)
-                         break # Found it
-
-                if retrieved_data is None:
-                    # Handle case where ID wasn't found in the db slice
-                    raise KeyError(f"Protein ID {protein_id} not found in database slice for worker {os.getpid()}")
+                # Revised logic: Expect only the compressed item when ids=[protein_id] and decompress=False
+                try:
+                    compressed_item = next(iter(db))
+                    retrieved_data = foldcomp.get_data(compressed_item)
+                except StopIteration:
+                    # Handle case where ID wasn't found or db was empty
+                    raise KeyError(f"Protein ID {protein_id} not found or database iterator empty for worker {os.getpid()}")
 
                 # Process the data
                 protein_obj = self.fc_to_pyg(retrieved_data, protein_id)
