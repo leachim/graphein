@@ -488,7 +488,6 @@ class FoldCompLightningDataModule(L.LightningDataModule):
             use_graphein=self.use_graphein,
         )
         self.ids = ds.ids
-        ds.db.close()
 
     def _split_data(
         self, train_split: float, val_split: float, test_split: float
