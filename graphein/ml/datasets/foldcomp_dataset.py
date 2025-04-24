@@ -388,6 +388,7 @@ class FoldCompLightningDataModule(L.LightningDataModule):
         transform: Optional[Iterable[Callable]] = None,
         num_workers: int = 4,
         pin_memory: bool = True,
+        persistent_workers: bool = False,
     ) -> None:
         """Creates a PyTorch Lightning DataModule for FoldComp datasets.
 
@@ -421,6 +422,9 @@ class FoldCompLightningDataModule(L.LightningDataModule):
         :param pin_memory: Whether to pin memory for data loading, defaults to
             ``True``
         :type pin_memory: bool, optional
+        :param persistent_workers: Whether to keep worker processes alive across epochs.
+            Defaults to ``False``. Requires ``num_workers > 0``.
+        :type persistent_workers: bool, optional
         """
         super().__init__()
         self.data_dir = data_dir
@@ -448,6 +452,7 @@ class FoldCompLightningDataModule(L.LightningDataModule):
 
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+        self.persistent_workers = persistent_workers and self.num_workers > 0
 
     def _compose_transforms(self, transforms: Iterable[Callable]) -> T.Compose:
         try:
@@ -534,6 +539,7 @@ class FoldCompLightningDataModule(L.LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -548,6 +554,7 @@ class FoldCompLightningDataModule(L.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -562,4 +569,5 @@ class FoldCompLightningDataModule(L.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers,
         )
