@@ -277,15 +277,13 @@ class FoldCompDataset(Dataset):
         log.info(f"Dataset contains {len(self.protein_to_idx)} chains.")
 
     def process(self):
-        """Initialises the database."""
-        # Open the database
-        log.info("Opening database...")
-        if self.ids is not None:
-            self.db = foldcomp.open(
-                self.root / self.database, ids=self.ids, decompress=False
-            )  # type: ignore
-        else:
-            self.db = foldcomp.open(self.root / self.database, decompress=False)  # type: ignore
+        """Checks if database files exist, downloads if necessary. Does NOT keep db handle open."""
+        # Check if files exist, download if necessary (self.download() handles this)
+        LOOKUP_FILE = Path(self.root) / f"{self.database}.lookup"
+        if not os.path.exists(LOOKUP_FILE):
+            self.download()
+        # No need to open and store self.db here anymore
+        log.info("FoldCompDataset processed (checked/downloaded files). Database will be opened per item in get().")
 
     @staticmethod
     def fc_to_pyg(data: Dict[str, Any], name: Optional[str] = None) -> Protein:
@@ -337,12 +335,59 @@ class FoldCompDataset(Dataset):
     def get(self, idx) -> Union[Data, Protein]:
         """Retrieves a protein from the dataset. Can idx on either the protein
         ID or its index."""
-        if isinstance(idx, str):
-            idx = self.protein_to_idx[idx]
+        global worker_db_path # Access the worker-specific global path
 
-        name = self.idx_to_protein[idx]
-        data = foldcomp.get_data(self.db[idx])  # type: ignore
-        return self.fc_to_pyg(data, name)
+        if worker_db_path is None:
+            # This worker hasn't been initialized correctly, handle error
+            # Fallback or raise error - maybe open from self.root if needed for non-worker use?
+            # For worker-based loading, this indicates a setup problem.
+            raise RuntimeError(f"Worker DB path not set for worker {os.getpid()}. Ensure worker_init_fn is correctly configured in DataLoader.")
+
+        if isinstance(idx, str):
+            protein_id = idx
+            # We might not need the int index if we always use protein_id
+            # idx = self.protein_to_idx[protein_id]
+        else: # If accessed by integer index
+            protein_id = self.idx_to_protein[idx]
+
+        # Construct the full path to the database file for the worker
+        db_file_path = Path(worker_db_path) / self.database
+
+        try:
+            # Open the database specifically for this item within the worker's get method
+            with foldcomp.open(fc_path=db_file_path, ids=[protein_id], decompress=False) as db:
+                # Note: foldcomp.open with ids might return an iterator even for one ID.
+                # We need to reliably get the single entry.
+                # Assuming db behaves like an iterator yielding (id, compressed_data)
+                # or directly allows access like db[protein_id] if it supports dictionary-like access.
+                # Let's try iterating, assuming it yields one item for the given id.
+                retrieved_data = None
+                for retrieved_id, compressed_item in db:
+                     if retrieved_id == protein_id:
+                         retrieved_data = foldcomp.get_data(compressed_item)
+                         break # Found it
+
+                if retrieved_data is None:
+                    # Handle case where ID wasn't found in the db slice
+                    raise KeyError(f"Protein ID {protein_id} not found in database slice for worker {os.getpid()}")
+
+                # Process the data
+                protein_obj = self.fc_to_pyg(retrieved_data, protein_id)
+
+                # Apply transform if any
+                if self.transform:
+                     protein_obj = self.transform(protein_obj)
+
+                return protein_obj
+
+        except FileNotFoundError:
+            log.error(f"Database file not found by worker {os.getpid()}: {db_file_path}")
+            # Decide how to handle - return None, raise error?
+            raise
+        except Exception as e:
+            log.error(f"Error in worker {os.getpid()} getting ID {protein_id} from {db_file_path}: {e}")
+            # Decide how to handle - return None, raise error?
+            raise
 
 
 class FoldCompLightningDataModule(L.LightningDataModule):
