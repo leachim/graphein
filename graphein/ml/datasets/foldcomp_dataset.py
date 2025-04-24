@@ -335,14 +335,6 @@ class FoldCompDataset(Dataset):
     def get(self, idx) -> Union[Data, Protein]:
         """Retrieves a protein from the dataset. Can idx on either the protein
         ID or its index."""
-        global worker_db_path # Access the worker-specific global path
-
-        if worker_db_path is None:
-            # This worker hasn't been initialized correctly, handle error
-            # Fallback or raise error - maybe open from self.root if needed for non-worker use?
-            # For worker-based loading, this indicates a setup problem.
-            raise RuntimeError(f"Worker DB path not set for worker {os.getpid()}. Ensure worker_init_fn is correctly configured in DataLoader.")
-
         if isinstance(idx, str):
             protein_id = idx
             # We might not need the int index if we always use protein_id
@@ -350,8 +342,8 @@ class FoldCompDataset(Dataset):
         else: # If accessed by integer index
             protein_id = self.idx_to_protein[idx]
 
-        # Construct the full path to the database file for the worker
-        db_file_path = Path(worker_db_path) / self.database
+        # Construct the full path to the database file for the worker using self.root
+        db_file_path = Path(self.root) / self.database
 
         try:
             # Open the database specifically for this item within the worker's get method
