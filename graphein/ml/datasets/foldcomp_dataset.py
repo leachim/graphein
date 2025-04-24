@@ -347,7 +347,7 @@ class FoldCompDataset(Dataset):
 
         try:
             # Open the database specifically for this item within the worker's get method
-            with foldcomp.open(fc_path=db_file_path, ids=[protein_id], decompress=False) as db:
+            with foldcomp.open(path=db_file_path, ids=[protein_id], decompress=False) as db:
                 # Note: foldcomp.open with ids might return an iterator even for one ID.
                 # We need to reliably get the single entry.
                 # Assuming db behaves like an iterator yielding (id, compressed_data)
